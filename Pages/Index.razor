@@ -1,0 +1,315 @@
+@page "/"
+@inject PdfController PdfController
+@inject IJSRuntime JSRuntime
+
+<PageTitle>PDF Editor</PageTitle>
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">PDF Editor</h1>
+
+            @if (string.IsNullOrEmpty(errorMessage) == false)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    @errorMessage
+                    <button type="button" class="btn-close" @onclick="@(() => errorMessage = string.Empty)"></button>
+                </div>
+            }
+
+            @if (string.IsNullOrEmpty(successMessage) == false)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    @successMessage
+                    <button type="button" class="btn-close" @onclick="@(() => successMessage = string.Empty)"></button>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Upload Section -->
+    @if (PdfController.CurrentDocument == null)
+    {
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h4 class="card-title">Upload PDF Document</h4>
+                        <p class="text-muted">Select a PDF file to edit</p>
+                        <InputFile OnChange="@HandleFileUpload" class="form-control" accept=".pdf" />
+                        @if (isUploading)
+                        {
+                            <div class="spinner-border mt-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Editor Section -->
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Document Info</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>File Name:</strong> @PdfController.CurrentDocument.FileName</p>
+                        <p><strong>Pages:</strong> @PdfController.CurrentDocument.Pages.Count</p>
+                        <p><strong>Uploaded:</strong> @PdfController.CurrentDocument.UploadedDate.ToString("g")</p>
+
+                        <button class="btn btn-primary w-100 mb-2" @onclick="DownloadPdf">
+                            Download Edited PDF
+                        </button>
+                        <button class="btn btn-secondary w-100" @onclick="ClearDocument">
+                            Upload New PDF
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Add Text Section -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5>Add Text to PDF</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Page Number</label>
+                            <input type="number" class="form-control" @bind="newAnnotation.PageNumber" min="1" max="@PdfController.CurrentDocument.Pages.Count" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Text</label>
+                            <textarea class="form-control" @bind="newAnnotation.Text" rows="3"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">X Position</label>
+                                <input type="number" class="form-control" @bind="newAnnotation.X" step="10" />
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Y Position</label>
+                                <input type="number" class="form-control" @bind="newAnnotation.Y" step="10" />
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Font Size</label>
+                            <input type="number" class="form-control" @bind="newAnnotation.FontSize" min="6" max="72" />
+                        </div>
+                        <button class="btn btn-success w-100" @onclick="AddTextAnnotation">
+                            Add Text
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>PDF Preview - Page Content</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (PdfController.CurrentDocument.Pages.Any())
+                        {
+                            <div class="mb-3">
+                                <label class="form-label">Select Page</label>
+                                <select class="form-select" @bind="selectedPageNumber">
+                                    @foreach (var page in PdfController.CurrentDocument.Pages)
+                                    {
+                                        <option value="@page.PageNumber">Page @page.PageNumber</option>
+                                    }
+                                </select>
+                            </div>
+
+                            @if (selectedPage != null)
+                            {
+                                <div class="border p-3 bg-light" style="min-height: 400px; max-height: 600px; overflow-y: auto;">
+                                    <h6>Page @selectedPage.PageNumber Content:</h6>
+                                    <pre style="white-space: pre-wrap; word-wrap: break-word;">@selectedPage.Text</pre>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted">No pages to display</p>
+                        }
+                    </div>
+                </div>
+
+                <!-- Annotations List -->
+                @if (annotations.Any())
+                {
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5>Added Annotations</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Page</th>
+                                            <th>Text</th>
+                                            <th>Position</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var annotation in annotations)
+                                        {
+                                            <tr>
+                                                <td>@annotation.PageNumber</td>
+                                                <td>@annotation.Text</td>
+                                                <td>(@annotation.X, @annotation.Y)</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-danger" @onclick="@(() => RemoveAnnotation(annotation))">Remove</button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isUploading = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private int selectedPageNumber = 1;
+    private List<TextAnnotation> annotations = new();
+    private TextAnnotation newAnnotation = new() { PageNumber = 1, X = 50, Y = 700, FontSize = 12 };
+
+    private PdfPage? selectedPage => PdfController.CurrentDocument?.Pages.FirstOrDefault(p => p.PageNumber == selectedPageNumber);
+
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
+    {
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+        isUploading = true;
+
+        try
+        {
+            var file = e.File;
+
+            if (file.ContentType != "application/pdf")
+            {
+                errorMessage = "Please select a valid PDF file.";
+                isUploading = false;
+                return;
+            }
+
+            const long maxFileSize = 10 * 1024 * 1024; // 10 MB
+            if (file.Size > maxFileSize)
+            {
+                errorMessage = "File size must be less than 10 MB.";
+                isUploading = false;
+                return;
+            }
+
+            using var stream = file.OpenReadStream(maxFileSize);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            var fileBytes = memoryStream.ToArray();
+
+            var success = await PdfController.UploadPdfAsync(fileBytes, file.Name);
+
+            if (success)
+            {
+                successMessage = "PDF uploaded successfully!";
+                selectedPageNumber = 1;
+                annotations.Clear();
+                newAnnotation = new() { PageNumber = 1, X = 50, Y = 700, FontSize = 12 };
+            }
+            else
+            {
+                errorMessage = "Failed to upload PDF. Please ensure it's a valid PDF file.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error uploading file: {ex.Message}";
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+
+    private async Task AddTextAnnotation()
+    {
+        if (string.IsNullOrWhiteSpace(newAnnotation.Text))
+        {
+            errorMessage = "Please enter text to add.";
+            return;
+        }
+
+        if (newAnnotation.PageNumber < 1 || newAnnotation.PageNumber > (PdfController.CurrentDocument?.Pages.Count ?? 0))
+        {
+            errorMessage = "Invalid page number.";
+            return;
+        }
+
+        annotations.Add(new TextAnnotation
+        {
+            PageNumber = newAnnotation.PageNumber,
+            Text = newAnnotation.Text,
+            X = newAnnotation.X,
+            Y = newAnnotation.Y,
+            FontSize = newAnnotation.FontSize,
+            FontFamily = newAnnotation.FontFamily
+        });
+
+        var result = await PdfController.AddTextAnnotationsAsync(new List<TextAnnotation> { newAnnotation });
+
+        if (result != null)
+        {
+            successMessage = "Text added successfully!";
+            // Reset form
+            newAnnotation = new() { PageNumber = selectedPageNumber, X = 50, Y = 700, FontSize = 12 };
+        }
+        else
+        {
+            errorMessage = "Failed to add text to PDF.";
+        }
+    }
+
+    private void RemoveAnnotation(TextAnnotation annotation)
+    {
+        annotations.Remove(annotation);
+        successMessage = "Annotation removed.";
+    }
+
+    private async Task DownloadPdf()
+    {
+        var content = PdfController.GetCurrentPdfContent();
+        if (content == null)
+        {
+            errorMessage = "No PDF content available to download.";
+            return;
+        }
+
+        var fileName = PdfController.GetCurrentFileName();
+        var editedFileName = Path.GetFileNameWithoutExtension(fileName) + "_edited.pdf";
+
+        await JSRuntime.InvokeVoidAsync("downloadFile", editedFileName, Convert.ToBase64String(content));
+        successMessage = "PDF downloaded successfully!";
+    }
+
+    private void ClearDocument()
+    {
+        PdfController.ClearDocument();
+        annotations.Clear();
+        selectedPageNumber = 1;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+    }
+}

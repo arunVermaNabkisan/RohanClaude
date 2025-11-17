@@ -1,0 +1,14 @@
+// Download file helper function
+window.downloadFile = function (filename, base64Content) {
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = 'data:application/pdf;base64,' + base64Content;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+// Additional helper functions can be added here
+window.showAlert = function (message, type) {
+    alert(message);
+};
