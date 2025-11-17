@@ -119,7 +119,7 @@
                                 <select class="form-select" @bind="selectedPageNumber">
                                     @foreach (var page in PdfController.CurrentDocument.Pages)
                                     {
-                                        <option value="@page.PageNumber">Page @page.PageNumber</option>
+                                        <option value="@(page.PageNumber)">Page @(page.PageNumber)</option>
                                     }
                                 </select>
                             </div>

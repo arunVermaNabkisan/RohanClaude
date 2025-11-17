@@ -12,9 +12,9 @@ namespace PdfEditorBlazor.Services
 {
     public class PdfService
     {
-        public async Task<PdfDocument> LoadPdfAsync(byte[] fileContent, string fileName)
+        public async Task<Models.PdfDocument> LoadPdfAsync(byte[] fileContent, string fileName)
         {
-            var pdfDocument = new PdfDocument
+            var pdfDocument = new Models.PdfDocument
             {
                 FileName = fileName,
                 FileContent = fileContent,
@@ -33,7 +33,7 @@ namespace PdfEditorBlazor.Services
                         var strategy = new SimpleTextExtractionStrategy();
                         var text = PdfTextExtractor.GetTextFromPage(page, strategy);
 
-                        pdfDocument.Pages.Add(new PdfPage
+                        pdfDocument.Pages.Add(new Models.PdfPage
                         {
                             PageNumber = i,
                             Text = text
