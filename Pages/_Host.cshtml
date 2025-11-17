@@ -1,4 +1,4 @@
-@page "/"
+@page
 @using Microsoft.AspNetCore.Components.Web
 @namespace PdfEditorBlazor.Pages
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
@@ -17,12 +17,9 @@
     <component type="typeof(App)" render-mode="ServerPrerendered" />
 
     <div id="blazor-error-ui">
-        <environment include="Staging,Production">
-            An error has occurred. This application may no longer respond until reloaded.
-        </environment>
-        <environment include="Development">
-            An unhandled exception has occurred. See browser dev tools for details.
-        </environment>
+        <div class="alert alert-secondary mt-4" role="alert">
+            An unhandled exception has occurred. This application may no longer respond until reloaded.
+        </div>
         <a href="" class="reload">Reload</a>
         <a class="dismiss">🗙</a>
     </div>
